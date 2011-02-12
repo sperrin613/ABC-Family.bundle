@@ -1,94 +1,78 @@
 # PMS plugin framework
-import re, string, datetime
-from PMS import *
-from PMS.Objects import *
-from PMS.Shortcuts import *
+import string, datetime
+import re
+
 ##################################################################################################ABC
-PLUGIN_PREFIX     = "/video/ABC_US"
+PLUGIN_PREFIX = "/video/abcfamily"
 
-ABC_URL                     = "http://abcfamily.go.com/"
-ABC_FULL_EPISODES_SHOW_LIST = "http://abcfamily.go.com/watch"
+ABC_ROOT      = "http://abc.go.com/"
+SHOW_LIST     = "http://cdn.abc.go.com/vp2/ws-supt/s/syndication/2000/rss/002/001/-1/-1/-1/-1/-1/-1"
+EPISODE_LIST  = "http://cdn.abc.go.com/vp2/ws-supt/s/syndication/2000/rss/002/001/lf/-1/%s/-1/-1/-1"
+FEED_URL      = "http://cdn.abc.go.com/vp2/ws/s/contents/2000/utils/mov/13/9024/%s/432"
+ART_URL       = "http://cdn.media.abc.go.com/m/images/shows/%s/bg/bkgd.jpg"
 
-ABC_FEED                    = "http://www.abcfamily.com/fod/"
-DEBUG                       = False
-abcart                      ="art-default.jpg"
-abcthumb                    ="icon-default.jpg"
+ART           = "art-default.jpg"
+THUMB         = "icon-default.jpg"
 
 ####################################################################################################
-
 def Start():
-  Plugin.AddPrefixHandler(PLUGIN_PREFIX, MainMenu, "ABCFamily","icon-default.jpg", "art-default.jpg")
+  Plugin.AddPrefixHandler(PLUGIN_PREFIX, MainMenu, 'ABC Family', THUMB, ART)
   Plugin.AddViewGroup("InfoList", viewMode="InfoList", mediaType="items")
   
-  MediaContainer.art        =R(abcart)
-  DirectoryItem.thumb       =R(abcthumb)
-  RTMPVideoItem.thumb       =R(abcthumb)
-  
+  MediaContainer.art = R(ART)
+  DirectoryItem.thumb = R(THUMB)
 
 ####################################################################################################
-#def MainMenu():
-#    dir = MediaContainer(mediaType='video') 
-#    dir.Append(Function(DirectoryItem(all_shows, "All Shows"), pageUrl = ABC_FULL_EPISODES_SHOW_LIST))
-#    return dir
-    
-####################################################################################################
 def MainMenu():
-    pageUrl=ABC_FULL_EPISODES_SHOW_LIST
     dir = MediaContainer(mediaType='video')
-    content = XML.ElementFromURL(pageUrl, True)
-    for item in content.xpath('//div[@id="show_list_data"]//ul[@class="show_listing_item"]'):
-      title=item.xpath("li[@class='show_listing_title']")[0].text
-      titleUrl = item.xpath("li[@class='show_listing_url']")[0].text
-      thumb= item.xpath("li[@class='show_listing_thumb']")[0].text
-      if thumb=="http://ll.static.abc.com/c/shows/" or thumb=="None":
-        thumb="icon-default.jpg"
-      if titleUrl.count("/clip/") ==0:
-        Log(titleUrl)
-        Log(thumb)
-        dir.Append(Function(DirectoryItem(VideoPage, title), pageUrl = titleUrl))
+    content = XML.ElementFromURL(SHOW_LIST)
+    for item in content.xpath('//item'):
+      title = item.xpath('./title')[0].text
+      artID = title.replace(': ', '-').replace(' ', '-').replace("'", "")
+      art = ART_URL % (artID)                           #MIGHT NOT WANT TO USE THIS ART & ALL SHOW DON'T HAVE ART
+      titleUrl = item.xpath('./link')[0].text
+      description = HTML.ElementFromString(item.xpath('./description')[0].text)
+      thumb = description.xpath('.//img')[0].get('src')
+      summary= description.xpath('.//p')[0].text
+      showID = titleUrl.split('?')[0]
+      showID = showID.rsplit('/', 1)[1]
+      dir.Append(Function(DirectoryItem(VideoPage, title,thumb=thumb, summary=summary, art=art), showID = showID, art=art))
     return dir 
 
 ####################################################################################################
-def VideoPage(sender, pageUrl):
+def VideoPage(sender, showID, art):
     dir = MediaContainer(title2=sender.itemTitle)
-    Log("Hello")
-    Log(pageUrl)
-    page = HTTP.Request(pageUrl)
-    key1=re.compile('showLongCarouselTabbedViewPL5515994\.setValues\(1,\'PL5515994\',\'(.+?),').findall(page)[0]
-    Log("key1: ")
-    Log(key1)
-    eplink1="http://abcfamily.go.com/vp2/showlongformcarouselimagelist/feed/" + key1
-    eplink1=eplink1 + "/start/0/limit/100/t/PL5515994/c/showFEPCarousel/pg/false?rand=05040004_3"
 
-
-    dir=getnfo(dir,key1,eplink1)
-      
-    return dir
-####################################################################################################
-def getnfo(dir, key1, eplink1):
-    
-      content2=XML.ElementFromURL(eplink1, True)
-      for item3 in content2.xpath('//div[@class="full"]'):
-        Log(item3)
-        vidUrl=item3.xpath('div/div/div[@class="thumb_img"]/a')[0].get('href')
-        thumb=item3.xpath('div/div/div[@class="thumb_img"]/a/img')[0].get('src')
-        title=item3.xpath('div/div[@class="ep_title"]/a')[0].text
-        id=vidUrl.split('/')[-2]
-        idUrl="http://cdn.abc.go.com/vp2/ws/s/contents/2000/utils/mov/13/9024/"+id+"/432?v=05040004_3"
+    episodeRSS = EPISODE_LIST % (showID)
+    content = XML.ElementFromURL(episodeRSS)
+    #Log(content.xpath("//text()"))
+    for item in content.xpath('//item'):
+        link = item.xpath('./link')[0].text
+        title1 = item.xpath('./title')[0].text
+        title = title1.split(' Full Episode')[0]
+        season=re.findall('s([0-9]+)',title1.split(' Full Episode')[-1])[0]
+        episode=re.findall('e([0-9]+)',title1.split(' Full Episode')[-1])[0]
+        subtitle='s'+season+'.'+'e'+episode
+        description = HTML.ElementFromString(item.xpath('./description')[0].text)
+        thumb = description.xpath('.//img')[0].get('src')
+        summary = description.xpath('.//p')[0].text
         
-        content3=XML.ElementFromURL(idUrl,False)
-        for item4 in content3.xpath('//videos'):
-          trueUrl=item4.xpath('video[@bitrate="1000"]')[0].get('src')
-          clip=trueUrl.replace("mp4:/","")
-          player="http://ll.media.abc.com/"
-          Log(trueUrl)
-
-          Log(thumb)
-          Log(title)
-        dir.Append(RTMPVideoItem(player, clip, title=title, thumb=thumb))
-      return dir
-
-
-
-
-
+        #Log(subtitle)
+        #duration = description.xpath("//text()")[3].split(': ')[1]   #SHOWS DURATION, NEEDS BETTER METHOD TO OBTAIN & CHANGE TO MILLISECONDS
+        #Log(duration)
+        id=link.rsplit('/', 2)[1]
+        url = FEED_URL % (id)
+        dir.Append(Function(VideoItem(VideoPlayer, title=title, subtitle=subtitle,summary=summary, thumb=thumb, art=art), url=url))  
+    return dir
+    
+####################################################################################################
+def VideoPlayer(sender, url):
+    dir = MediaContainer(title2=sender.itemTitle)
+    Log(url)
+    content=XML.ElementFromURL(url)
+    for item in content.xpath('//videos'):
+        clip=item.xpath('video[@bitrate="1000"]')[0].get('src')
+        #clip=item.get('src')             #MIGHT WANT TO SETUP PREFS FOR QUALITY???
+        #Log(clip)
+        player="http://ll.media.abc.com/" + clip.replace("mp4:/","")
+    return Redirect(VideoItem(player))
