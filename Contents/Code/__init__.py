@@ -34,19 +34,17 @@ def MainMenu():
     content = XML.ElementFromURL(SHOW_LIST)
     for item in content.xpath('//item'):
         title = item.xpath('./title')[0].text
-        artId = title.replace(': ', '-').replace(' ', '-').replace("'", "")
-        art = ART_URL % (artId)                           #MIGHT NOT WANT TO USE THIS ART & ALL SHOW DON'T HAVE ART
         titleUrl = item.xpath('./link')[0].text
         description = HTML.ElementFromString(item.xpath('./description')[0].text)
         thumb = description.xpath('.//img')[0].get('src')
         summary = description.xpath('.//p')[0].text
         showId = titleUrl.split('?')[0]
         showId = showId.rsplit('/', 1)[1]
-        dir.Append(Function(DirectoryItem(VideoPage, title, thumb=Function(Graphic, url=thumb, type="thumb"), summary=summary, art=Function(Graphic, url=art, type="art")), showId=showId, art=art))
+        dir.Append(Function(DirectoryItem(VideoPage, title, thumb=Function(Graphic, url=thumb, type="thumb"), summary=summary), showId=showId))
     return dir 
 
 ####################################################################################################
-def VideoPage(sender, showId, art):
+def VideoPage(sender, showId):
     dir = MediaContainer(title2=sender.itemTitle)
     episodeRss = EPISODE_LIST % (showId)
     content = XML.ElementFromURL(episodeRss)
@@ -67,7 +65,7 @@ def VideoPage(sender, showId, art):
         #Log(duration)
         id = link.rsplit('/', 2)[1]
         url = FEED_URL % (id)
-        dir.Append(Function(VideoItem(VideoPlayer, title=title, subtitle=subtitle, summary=summary, thumb=Function(Graphic, url=thumb, type="thumb"), art=Function(Graphic, url=art, type="art")), url=url))  
+        dir.Append(Function(VideoItem(VideoPlayer, title=title, subtitle=subtitle, summary=summary, thumb=Function(Graphic, url=thumb, type="thumb")), url=url))  
     return dir
     
 ####################################################################################################
