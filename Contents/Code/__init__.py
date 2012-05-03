@@ -36,7 +36,7 @@ def MainMenu():
         title = item.xpath('./title')[0].text
         titleUrl = item.xpath('./link')[0].text
         description = HTML.ElementFromString(item.xpath('./description')[0].text)
-        thumb = description.xpath('.//img')[0].get('src')
+        thumb = item.xpath('./image')[0].text
         summary = description.xpath('.//p')[0].text
         showId = titleUrl.split('?')[0]
         showId = showId.rsplit('/', 1)[1]
