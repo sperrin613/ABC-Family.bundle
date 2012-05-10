@@ -1,4 +1,5 @@
-import re, string, datetime
+RE_SEASON = Regex('s([0-9]+)')
+RE_EPISODE = REgex('e([0-9]+)')
 
 ##################################################################################################ABC
 PLUGIN_PREFIX = "/video/abcfamily"
@@ -16,21 +17,20 @@ ICON          = "icon-default.jpg"
 ####################################################################################################
 def Start():
     Plugin.AddPrefixHandler(PLUGIN_PREFIX, MainMenu, NAME, ICON, ART)
-    Plugin.AddViewGroup("InfoList", viewMode="InfoList", mediaType="items")
 
-    MediaContainer.art = R(ART)
-    DirectoryItem.thumb = R(ICON)
-    DirectoryItem.viewGroup = "InfoList"
+    ObjectContainer.title1 = NAME
+    
+    ObjectContainer.art = R(ART)
+    DirectoryObject.thumb = R(ICON)
 
-    DirectoryItem.thumb = R(ICON)
-    VideoItem.thumb = R(ICON)
+    DirectoryItem.Object = R(ICON)
 
     HTTP.CacheTime = CACHE_1HOUR
     HTTP.Headers['User-Agent'] = "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.6; en-US; rv:1.9.2.13) Gecko/20101203 Firefox/3.6.13"
 
 ####################################################################################################
 def MainMenu():
-    dir = MediaContainer()
+    oc = ObjectContainer()
     content = XML.ElementFromURL(SHOW_LIST)
     for item in content.xpath('//item'):
         title = item.xpath('./title')[0].text
@@ -40,55 +40,31 @@ def MainMenu():
         summary = description.xpath('.//p')[0].text
         showId = titleUrl.split('?')[0]
         showId = showId.rsplit('/', 1)[1]
-        dir.Append(Function(DirectoryItem(VideoPage, title, thumb=Function(Graphic, url=thumb, type="thumb"), summary=summary), showId=showId))
-    return dir 
+        oc.add(DirectoryObject(key=Callback(VideoPage, showId=showID, title=title), title=title, summary=summary,
+            thumb=Resource.ContentsOfURLWithFallback(url=thumb, fallback=ICON)))
+    return oc
 
 ####################################################################################################
-def VideoPage(sender, showId):
-    dir = MediaContainer(title2=sender.itemTitle)
+def VideoPage(showId, title):
+    oc = ObjectContainer(title2=title)
     episodeRss = EPISODE_LIST % (showId)
     content = XML.ElementFromURL(episodeRss)
-    #Log(content.xpath("//text()"))
     for item in content.xpath('//item'):
         link = item.xpath('./link')[0].text
         title1 = item.xpath('./title')[0].text
-        title = title1.split(' Full Episode')[0]
-        season = re.findall('s([0-9]+)',title1.split(' Full Episode')[-1])[0]
-        episode = re.findall('e([0-9]+)',title1.split(' Full Episode')[-1])[0]
-        subtitle = 's' + season + '.' + 'e' + episode
+        ep_title = title1.split(' Full Episode')[0]
+        season = RE_SEASON.findall(title1.split(' Full Episode')[-1])[0]
+        episode = RE_EPISODE.findall(title1.split(' Full Episode')[-1])[0]
         description = HTML.ElementFromString(item.xpath('./description')[0].text)
         thumb = description.xpath('.//img')[0].get('src')
         summary = description.xpath('.//p')[0].text
 
-        #Log(subtitle)
         #duration = description.xpath("//text()")[3].split(': ')[1]   #SHOWS DURATION, NEEDS BETTER METHOD TO OBTAIN & CHANGE TO MILLISECONDS
         #Log(duration)
         id = link.rsplit('/', 2)[1]
         url = FEED_URL % (id)
-        dir.Append(Function(VideoItem(VideoPlayer, title=title, subtitle=subtitle, summary=summary, thumb=Function(Graphic, url=thumb, type="thumb")), url=url))  
-    return dir
+        oc.add(EpisodeObject(url=url, title=title, show=ep_title, season=int(season), index=int(episode), summary=summary,
+            thumb=Resource.ContentsOfURLWithFallback(ul=thumb, fallback=ICON)))
+    return oc
     
 ####################################################################################################
-def VideoPlayer(sender, url):
-    dir = MediaContainer(title2=sender.itemTitle)
-    Log(url)
-    content = XML.ElementFromURL(url)
-    for item in content.xpath('//videos'):
-        clip = item.xpath('video[@bitrate="1000"]')[0].get('src')
-        #clip = item.get('src')             #MIGHT WANT TO SETUP PREFS FOR QUALITY???
-        #Log(clip)
-        #player="http://ll.video.abc.com/" + clip.replace("mp4:/","")  #DIRECT FEED BROKE!!!
-        player = "rtmp://cp88586.edgefcs.net/ondemand/"    #WE'RE STREAMING
-    return Redirect(RTMPVideoItem(player, clip))
-
-
-####################################################################################################
-def Graphic(url, type):
-    try:
-        data = HTTP.Request(url, cacheTime=CACHE_1MONTH).content
-        return DataObject(data, 'image/jpeg')
-    except:
-        if type == "art":
-            return Redirect(R(ART))
-        else:
-            return Redirect(R(ICON))
