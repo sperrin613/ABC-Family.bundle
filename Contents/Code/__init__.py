@@ -1,5 +1,5 @@
 RE_SEASON = Regex('s([0-9]+)')
-RE_EPISODE = REgex('e([0-9]+)')
+RE_EPISODE = Regex('e([0-9]+)')
 
 ##################################################################################################ABC
 PLUGIN_PREFIX = "/video/abcfamily"
