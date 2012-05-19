@@ -1,5 +1,6 @@
 RE_SEASON = Regex('s([0-9]+)')
 RE_EPISODE = Regex('e([0-9]+)')
+RE_DURATION = Regex('Duration: ([0-9]+:[0-9]{2})')
 
 ##################################################################################################ABC
 PLUGIN_PREFIX = "/video/abcfamily"
@@ -40,7 +41,7 @@ def MainMenu():
         summary = description.xpath('.//p')[0].text
         showId = titleUrl.split('?')[0]
         showId = showId.rsplit('/', 1)[1]
-        oc.add(DirectoryObject(key=Callback(VideoPage, showId=showID, title=title), title=title, summary=summary,
+        oc.add(DirectoryObject(key=Callback(VideoPage, showId=showId, title=title), title=title, summary=summary,
             thumb=Resource.ContentsOfURLWithFallback(url=thumb, fallback=ICON)))
     return oc
 
@@ -58,13 +59,15 @@ def VideoPage(showId, title):
         description = HTML.ElementFromString(item.xpath('./description')[0].text)
         thumb = description.xpath('.//img')[0].get('src')
         summary = description.xpath('.//p')[0].text
-
-        #duration = description.xpath("//text()")[3].split(': ')[1]   #SHOWS DURATION, NEEDS BETTER METHOD TO OBTAIN & CHANGE TO MILLISECONDS
-        #Log(duration)
-        id = link.rsplit('/', 2)[1]
-        url = FEED_URL % (id)
-        oc.add(EpisodeObject(url=url, title=title, show=ep_title, season=int(season), index=int(episode), summary=summary,
-            thumb=Resource.ContentsOfURLWithFallback(ul=thumb, fallback=ICON)))
+        runtime = RE_DURATION.search(item.xpath('./description')[0].text).group(1)
+        duration = DurationMS(runtime)
+        
+        oc.add(EpisodeObject(url=link, title=ep_title, show=title, season=int(season), index=int(episode), summary=summary,
+            duration=duration, thumb=Resource.ContentsOfURLWithFallback(url=thumb, fallback=ICON)))
     return oc
     
 ####################################################################################################
+def DurationMS(runtime):
+    parts = runtime.split(':')
+    duration = (int(parts[0])*60 + int(parts[1]))*1000
+    return duration
