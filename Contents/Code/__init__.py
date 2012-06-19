@@ -37,7 +37,11 @@ def MainMenu():
         title = item.xpath('./title')[0].text
         titleUrl = item.xpath('./link')[0].text
         description = HTML.ElementFromString(item.xpath('./description')[0].text)
+
         thumb = item.xpath('./image')[0].text
+        if not thumb:
+          thumb = 'http://cdn.media.abcfamily.com/a/images/global/generic/new_abcf_logo.png'
+
         summary = description.xpath('.//p')[0].text
         showId = titleUrl.split('?')[0]
         showId = showId.rsplit('/', 1)[1]
