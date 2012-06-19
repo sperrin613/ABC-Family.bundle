@@ -35,6 +35,10 @@ def MainMenu():
     content = XML.ElementFromURL(SHOW_LIST)
     for item in content.xpath('//item'):
         title = item.xpath('./title')[0].text
+
+        if title in ['ABC Family Movies']:
+            continue
+
         titleUrl = item.xpath('./link')[0].text
         description = HTML.ElementFromString(item.xpath('./description')[0].text)
 
