@@ -11,23 +11,15 @@ EPISODE_LIST = "http://cdn.abc.go.com/vp2/ws-supt/s/syndication/2000/rss/002/001
 FEED_URL = "http://cdn.abc.go.com/vp2/ws/s/contents/2000/utils/mov/13/9024/%s/432"
 ART_URL = "http://cdn.media.abc.go.com/m/images/shows/%s/bg/bkgd.jpg"
 
-ART = "art-default.jpg"
-ICON = "icon-default.jpg"
-
 ####################################################################################################
 def Start():
 
 	ObjectContainer.title1 = NAME
-	ObjectContainer.art = R(ART)
-
-	DirectoryObject.thumb = R(ICON)
-	DirectoryItem.Object = R(ICON)
-
 	HTTP.CacheTime = CACHE_1HOUR
-	HTTP.Headers['User-Agent'] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:15.0) Gecko/20100101 Firefox/15.0.1"
+	HTTP.Headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0'
 
 ####################################################################################################
-@handler('/video/abcfamily', NAME, art = ART, thumb = ICON)
+@handler('/video/abcfamily', NAME)
 def MainMenu():
 
 	oc = ObjectContainer()
@@ -50,7 +42,8 @@ def MainMenu():
 		showId = titleUrl.split('?')[0]
 		showId = showId.rsplit('/', 1)[1]
 		oc.add(DirectoryObject(key=Callback(VideoPage, showId=showId, title=title), title=title, summary=summary,
-			thumb=Resource.ContentsOfURLWithFallback(url=thumb, fallback=ICON)))
+			thumb=Resource.ContentsOfURLWithFallback(url=thumb)))
+
 	return oc
 
 ####################################################################################################
@@ -71,10 +64,18 @@ def VideoPage(showId, title):
 		thumb = description.xpath('.//img')[0].get('src')
 		summary = description.xpath('.//p')[0].text
 		runtime = RE_DURATION.search(item.xpath('./description')[0].text).group(1)
-		duration = DurationMS(runtime)
+		duration = Datetime.MillisecondsFromString(runtime)
 
-		oc.add(EpisodeObject(url=link, title=ep_title, show=title, season=int(season), index=int(episode), summary=summary,
-			duration=duration, thumb=Resource.ContentsOfURLWithFallback(url=thumb, fallback=ICON)))
+		oc.add(EpisodeObject(
+			url = link,
+			title = ep_title,
+			show = title,
+			season = int(season),
+			index = int(episode),
+			summary = summary,
+			duration = duration,
+			thumb = Resource.ContentsOfURLWithFallback(url=thumb)
+		))
 
 	return oc
 
