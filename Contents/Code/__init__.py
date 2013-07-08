@@ -1,87 +1,88 @@
-RE_SEASON = Regex('s([0-9]+)')
-RE_EPISODE = Regex('e([0-9]+)')
-RE_DURATION = Regex('Duration: ([0-9]+:[0-9]{2})')
-
-##################################################################################################ABC
 NAME = "ABC Family"
-
-ABC_ROOT = "http://abc.go.com/"
 SHOW_LIST = "http://cdn.abc.go.com/vp2/ws-supt/s/syndication/2000/rss/002/001/-1/-1/-1/-1/-1/-1"
 EPISODE_LIST = "http://cdn.abc.go.com/vp2/ws-supt/s/syndication/2000/rss/002/001/lf/-1/%s/-1/-1/-1"
-FEED_URL = "http://cdn.abc.go.com/vp2/ws/s/contents/2000/utils/mov/13/9024/%s/432"
-ART_URL = "http://cdn.media.abc.go.com/m/images/shows/%s/bg/bkgd.jpg"
+
+RE_SXX_EXX = Regex('e(\d+) \| s(\d+)')
+RE_DURATION = Regex('Duration: (\d+:\d{2})')
+RE_AIRDATE = Regex('Air date:.+?, (\d{2}.+?20\d{2})')
 
 ####################################################################################################
 def Start():
 
 	ObjectContainer.title1 = NAME
 	HTTP.CacheTime = CACHE_1HOUR
-	HTTP.Headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0'
+	HTTP.Headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:22.0) Gecko/20100101 Firefox/22.0'
 
 ####################################################################################################
 @handler('/video/abcfamily', NAME)
 def MainMenu():
 
 	oc = ObjectContainer()
-	content = XML.ElementFromURL(SHOW_LIST)
 
-	for item in content.xpath('//item'):
-		title = item.xpath('./title')[0].text
+	if not Client.Platform in ('Android', 'iOS', 'Roku') and not (Client.Platform == 'Safari' and Platform.OS == 'MacOSX'):
+		oc.header = 'Not supported'
+		oc.message = 'This channel is not supported on %s' % (Client.Platform if Client.Platform is not None else 'this client')
+		return oc
 
-		if title in ['ABC Family Movies']:
+	xml = XML.ElementFromURL(SHOW_LIST)
+
+	for item in xml.xpath('//item'):
+		title = item.xpath('./title/text()')[0]
+
+		if title in ('ABC Family Movies'):
 			continue
 
-		titleUrl = item.xpath('./link')[0].text
-		description = HTML.ElementFromString(item.xpath('./description')[0].text)
+		show_id = item.xpath('./link/text()')[0].split('?')[0].split('/')[-1]
+		summary = HTML.ElementFromString(item.xpath('./description/text()')[0]).xpath('//p/text()')[0]
 
-		thumb = item.xpath('./image')[0].text
-		if not thumb:
-		  thumb = 'http://cdn.media.abcfamily.com/a/images/global/generic/new_abcf_logo.png'
+		try:
+			thumb = item.xpath('./image/text()')[0]
+		except:
+			thumb = ''
 
-		summary = description.xpath('.//p')[0].text
-		showId = titleUrl.split('?')[0]
-		showId = showId.rsplit('/', 1)[1]
-		oc.add(DirectoryObject(key=Callback(VideoPage, showId=showId, title=title), title=title, summary=summary,
-			thumb=Resource.ContentsOfURLWithFallback(url=thumb)))
-
-	return oc
-
-####################################################################################################
-@route('/video/abcfamily/videos')
-def VideoPage(showId, title):
-
-	oc = ObjectContainer(title2=title)
-	episodeRss = EPISODE_LIST % (showId)
-	content = XML.ElementFromURL(episodeRss)
-
-	for item in content.xpath('//item'):
-		link = item.xpath('./link')[0].text
-		title1 = item.xpath('./title')[0].text
-		ep_title = title1.split(' Full Episode')[0]
-		season = RE_SEASON.findall(title1.split(' Full Episode')[-1])[0]
-		episode = RE_EPISODE.findall(title1.split(' Full Episode')[-1])[0]
-		description = HTML.ElementFromString(item.xpath('./description')[0].text)
-		thumb = description.xpath('.//img')[0].get('src')
-		summary = description.xpath('.//p')[0].text
-		runtime = RE_DURATION.search(item.xpath('./description')[0].text).group(1)
-		duration = Datetime.MillisecondsFromString(runtime)
-
-		oc.add(EpisodeObject(
-			url = link,
-			title = ep_title,
-			show = title,
-			season = int(season),
-			index = int(episode),
+		oc.add(DirectoryObject(
+			key = Callback(Episodes, show_id=show_id, title=title),
+			title = title,
 			summary = summary,
-			duration = duration,
 			thumb = Resource.ContentsOfURLWithFallback(url=thumb)
 		))
 
 	return oc
 
 ####################################################################################################
-def DurationMS(runtime):
+@route('/video/abcfamily/episodes')
+def Episodes(show_id, title):
 
-	parts = runtime.split(':')
-	duration = (int(parts[0])*60 + int(parts[1]))*1000
-	return duration
+	oc = ObjectContainer(title2=title)
+	xml = XML.ElementFromURL(EPISODE_LIST % show_id)
+
+	for item in xml.xpath('//item'):
+		url = item.xpath('./link/text()')[0]
+		full_title = item.xpath('./title/text()')[0]
+		ep_title = full_title.split(' Full Episode')[0]
+		(episode, season) = RE_SXX_EXX.search(full_title).groups()
+
+		description = HTML.ElementFromString(item.xpath('./description/text()')[0])
+
+		summary = description.xpath('.//p/text()')[0]
+		thumb = description.xpath('.//img/@src')[0]
+
+		duration = RE_DURATION.search(item.xpath('./description/text()')[0]).group(1)
+		duration = Datetime.MillisecondsFromString(duration)
+
+		originally_available_at = RE_AIRDATE.search(item.xpath('./description/text()')[0]).group(1)
+		originally_available_at = Datetime.ParseDate(originally_available_at).date()
+
+		oc.add(EpisodeObject(
+			url = url,
+			title = ep_title,
+			show = title,
+			season = int(season),
+			index = int(episode),
+			summary = summary,
+			thumb = Resource.ContentsOfURLWithFallback(url=thumb),
+			duration = duration,
+			originally_available_at = originally_available_at
+		))
+
+	return oc
