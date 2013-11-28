@@ -29,7 +29,7 @@ def MainMenu():
 	for item in xml.xpath('//item'):
 		title = item.xpath('./title/text()')[0]
 
-		if title in ('ABC Family Movies'):
+		if title in ('ABC Family Movies', '25 Days Of Christmas'):
 			continue
 
 		show_id = item.xpath('./link/text()')[0].split('?')[0].split('/')[-1]
