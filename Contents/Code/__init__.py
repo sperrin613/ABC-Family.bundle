@@ -63,6 +63,8 @@ def Episodes(show_id, title):
 		# Found that one show had an episode value of "Recap" and gave an error when trying to pull this data
 		try:
 			(episode, season) = RE_SXX_EXX.search(full_title).groups()
+			episode = int(episode)
+			index = int(index)
 		except:
 			(episode, season) = (None, None)
 
@@ -81,8 +83,8 @@ def Episodes(show_id, title):
 			url = url,
 			title = ep_title,
 			show = title,
-			season = int(season),
-			index = int(episode),
+			season = season,
+			index = episode,
 			summary = summary,
 			thumb = Resource.ContentsOfURLWithFallback(url=thumb),
 			duration = duration,
