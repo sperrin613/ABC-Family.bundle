@@ -29,7 +29,7 @@ def MainMenu():
 	for item in xml.xpath('//item'):
 		title = item.xpath('./title/text()')[0]
 
-		if title in ('ABC Family Movies', '25 Days Of Christmas'):
+		if 'Movies' in title:
 			continue
 
 		show_id = item.xpath('./link/text()')[0].split('?')[0].split('/')[-1]
@@ -60,7 +60,11 @@ def Episodes(show_id, title):
 		url = item.xpath('./link/text()')[0]
 		full_title = item.xpath('./title/text()')[0]
 		ep_title = full_title.split(' Full Episode')[0]
-		(episode, season) = RE_SXX_EXX.search(full_title).groups()
+		# Found that one show had an episode value of "Recap" and gave an error when trying to pull this data
+		try:
+			(episode, season) = RE_SXX_EXX.search(full_title).groups()
+		except:
+			(episode, season) = ('0', '0')
 
 		description = HTML.ElementFromString(item.xpath('./description/text()')[0])
 
