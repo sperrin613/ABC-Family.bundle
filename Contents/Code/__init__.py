@@ -29,7 +29,7 @@ def MainMenu():
 	for item in xml.xpath('//item'):
 		title = item.xpath('./title/text()')[0]
 
-		if 'Movies' in title:
+		if 'movies' in title.lower():
 			continue
 
 		show_id = item.xpath('./link/text()')[0].split('?')[0].split('/')[-1]
@@ -64,7 +64,7 @@ def Episodes(show_id, title):
 		try:
 			(episode, season) = RE_SXX_EXX.search(full_title).groups()
 		except:
-			(episode, season) = ('0', '0')
+			(episode, season) = (None, None)
 
 		description = HTML.ElementFromString(item.xpath('./description/text()')[0])
 
