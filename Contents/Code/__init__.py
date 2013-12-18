@@ -64,7 +64,7 @@ def Episodes(show_id, title):
 		try:
 			(episode, season) = RE_SXX_EXX.search(full_title).groups()
 			episode = int(episode)
-			index = int(index)
+			season = int(season)
 		except:
 			(episode, season) = (None, None)
 
